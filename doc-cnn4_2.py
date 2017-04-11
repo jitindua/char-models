@@ -47,25 +47,34 @@ sentiments = []
 max_word_l = 0
 max_sent_l = 0
 
-files = ['rt-polarity.pos', 'rt-polarity.neg']
-sentiments_idx = [1, 0]
-for file, idx in files, sentiments_idx:
-    with open(file, "rb") as f:
-        for line in f:
-            words = re.split(r'\s+', clean(striphtml(cont)))
-            words = [word.lower() for word in words]
-            if (max_sent_l > len(words)):
-                max_sent_l = len(words)
-                for word in words:
-                    if (max_word_l > len(word)):
-                        max_word_l = len(word)
-            sentences.append(words)
-            sentiments.append(idx)
+with open('rt-polarity.pos', "rb") as f:
+    for line in f:
+        words = re.split(r'\s+', clean(striphtml(line)))
+        words = [word.lower() for word in words]
+        if (max_sent_l > len(words)):
+            max_sent_l = len(words)
+            for word in words:
+                if (max_word_l > len(word)):
+                    max_word_l = len(word)
+        sentences.append(words)
+        sentiments.append(1)
+with open('rt-polarity.neg', "rb") as f:
+    for line in f:
+        words = re.split(r'\s+', clean(striphtml(line)))
+        words = [word.lower() for word in words]
+        if (max_sent_l > len(words)):
+            max_sent_l = len(words)
+            for word in words:
+                if (max_word_l > len(word)):
+                    max_word_l = len(word)
+        sentences.append(words)
+        sentiments.append(0)
 
 for sent in sentences:
-    txt += sent
+    for word in words:
+        txt += word
 
-chars = chars(txt)
+chars = set(txt)
 
 print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
@@ -128,7 +137,7 @@ char_embedding = 40
 sentence = Input(shape=(max_sent_l, max_word_l), dtype='int64')
 in_word = Input(shape=(max_word_l,), dtype='int64')
 
-embedded = Lambda(binarize, output_shape=binarize_outshape)(in_sentence)
+embedded = Lambda(binarize, output_shape=binarize_outshape)(in_word)
 
 block2 = char_block(embedded, (128, 256), filter_length=(3, 5), subsample=(1, 1), pool_length=(2, 2))
 block3 = char_block(embedded, (192, 320), filter_length=(7, 5), subsample=(1, 1), pool_length=(2, 2))
