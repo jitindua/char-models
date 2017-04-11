@@ -14,12 +14,12 @@ import sys
 import os
 
 
-def binarize(x, sz=59):
+def binarize(x, sz=23):
     return tf.to_float(tf.one_hot(x, sz, on_value=1, off_value=0, axis=-1))
 
 
 def binarize_outshape(in_shape):
-    return in_shape[0], in_shape[1], 59
+    return in_shape[0], in_shape[1], 23
 
 
 def striphtml(s):
@@ -44,18 +44,35 @@ if len(sys.argv) == 2:
 txt = ''
 sentences = []
 sentiments = []
+max_word_l = 0
+max_sent_l = 0
 
 with open('rt-polarity.pos', "rb") as f:
     for line in f:
-        sentences.append(clean(striphtml(line).lower()))
+        words = re.split(r'\s+', clean(striphtml(line)))
+        words = [word.lower() for word in words]
+        if (max_sent_l < len(words)):
+            max_sent_l = len(words)
+            for word in words:
+                if (max_word_l < len(word)):
+                    max_word_l = len(word)
+        sentences.append(words)
         sentiments.append(1)
 with open('rt-polarity.neg', "rb") as f:
     for line in f:
-        sentences.append(clean(striphtml(line).lower()))
+        words = re.split(r'\s+', clean(striphtml(line)))
+        words = [word.lower() for word in words]
+        if (max_sent_l < len(words)):
+            max_sent_l = len(words)
+            for word in words:
+                if (max_word_l < len(word)):
+                    max_word_l = len(word)
+        sentences.append(words)
         sentiments.append(0)
 
 for sent in sentences:
-        txt += sent
+    for word in words:
+        txt += word
 
 chars = set(txt)
 
@@ -65,14 +82,14 @@ indices_char = dict((i, c) for i, c in enumerate(chars))
 
 print('Sample sent{}'.format(sentences[2]))
 
-maxlen = 512
-
-X = np.ones((len(sentences), maxlen), dtype=np.int64) * -1
+X = np.ones((len(sentences), max_sent_l, max_word_l), dtype=np.int64) * -1
 y = np.array(sentiments)
 
-for i, sentence in enumerate(sentences):
-  for t, char in enumerate(sentence[-maxlen:]):
-    X[i, (maxlen - 1 - t)] = char_indices[char]
+for i, sent in enumerate(sentences):
+    for j, word in enumerate(sent):
+        if j < max_sent_l:
+            for t, char in enumerate(word[-max_word_l:]):
+                X[i, j, (max_word_l - 1 - t)] = char_indices[char]
 
 print('Sample X:{}'.format(X[2]))
 print('y:{}'.format(y[2]))
@@ -117,28 +134,22 @@ def char_block(in_layer, nb_filter=(64, 100), filter_length=(3, 3), subsample=(2
 max_features = len(chars) + 1
 char_embedding = 40
 
-in_sentence = Input(shape=(maxlen,), dtype='int64')
+sentence = Input(shape=(max_sent_l, max_word_l), dtype='int64')
+in_word = Input(shape=(max_word_l,), dtype='int64')
 
-embedded = Lambda(binarize, output_shape=binarize_outshape)(in_sentence)
+embedded = Lambda(binarize, output_shape=binarize_outshape)(in_word)
 
-block2 = char_block(embedded, (128, 256), filter_length=(5, 5), subsample=(1, 1), pool_length=(2, 2))
+block2 = char_block(embedded, (128, 256), filter_length=(3, 5), subsample=(1, 1), pool_length=(2, 2))
 block3 = char_block(embedded, (192, 320), filter_length=(7, 5), subsample=(1, 1), pool_length=(2, 2))
 
-sent_encode = concatenate([block2, block3], axis=-1)
+word_encode = concatenate([block2, block3], axis=-1)
 # sent_encode = Dropout(0.2)(sent_encode)
 
-lstm_h = 92
+encoder = Model(inputs=in_word, outputs=word_encode)
+encoder.summary()
 
-lstm_layer = LSTM(lstm_h, return_sequences=True, dropout=0.1, recurrent_dropout=0.1, implementation=0)(sent_encode)
-lstm_layer2 = LSTM(lstm_h, return_sequences=False, dropout=0.1, recurrent_dropout=0.1, implementation=0)(lstm_layer)
+encoded = TimeDistributed(encoder)(sentence)
 
-# output = Dropout(0.2)(bi_lstm)
-output = Dense(1, activation='sigmoid')(lstm_layer2)
-
-model = Model(inputs=in_sentence, outputs=output)
-model.summary()
-
-'''
 lstm_h = 92
 
 lstm_layer = LSTM(lstm_h, return_sequences=True, dropout=0.1, recurrent_dropout=0.1, implementation=0)(encoded)
@@ -147,10 +158,10 @@ lstm_layer2 = LSTM(lstm_h, return_sequences=False, dropout=0.1, recurrent_dropou
 # output = Dropout(0.2)(bi_lstm)
 output = Dense(1, activation='sigmoid')(lstm_layer2)
 
-model = Model(outputs=output, inputs=document)
+model = Model(outputs=output, inputs=sentence)
 
 model.summary()
-'''
+
 if checkpoint:
     model.load_weights(checkpoint)
 

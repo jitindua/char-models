@@ -131,7 +131,7 @@ output = Dropout(0.3)(output)
 output = Dense(1, activation='sigmoid')(output)
 
 # sentence encoder
-model = Model(inputs=in_sentence, outputs=sent_encode)
+model = Model(inputs=in_sentence, outputs=output)
 model.summary()
 
 '''encoded = TimeDistributed(encoder)(document)
