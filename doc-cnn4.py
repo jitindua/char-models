@@ -158,8 +158,8 @@ check_cb = keras.callbacks.ModelCheckpoint('checkpoints/' + file_name + '.{epoch
                                            verbose=0, save_best_only=True, mode='min')
 
 earlystop_cb = keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, verbose=0, mode='auto')
-
+tb_cb = keras.callbacks.TensorBoard(log_dir='./logs', hitogram_freq=10)
 optimizer = 'rmsprop'
 model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
-model.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=10, epochs=30, shuffle=True, callbacks=[check_cb, earlystop_cb])
+model.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=10, epochs=30, shuffle=True, callbacks=[check_cb, earlystop_cb, tb_cb])
